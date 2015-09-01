@@ -7,6 +7,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -264,6 +265,93 @@ public class BTM {
 		}
 
 	}
+	
+	public void inferenceNewDocument(String filename){
+		/**
+		 * inference new documents's topid distribution
+		 */
+		
+		try {
+			BufferedReader br = new BufferedReader(new FileReader(filename));
+			String line = null;
+			List<Integer> TOPICS = new ArrayList<Integer>(); //记录每个document概率最大的topic
+			
+			while((line = br.readLine()) != null){
+				String[] d = line.split(",");
+				String[] data = d[1].split(" ");
+				
+				Map<Pair, Integer> documentB = new HashMap<Pair, Integer>(); //当前文档的词对及其出现次数
+				List<Pair> document = new ArrayList<Pair>();
+				if(data.length >= 2){
+					int Nd = 0;
+					for(int i=0;i<data.length-1;i++){
+						for(int j=i+1;j<min(i+window, data.length);j++){
+							Nd ++;
+							int minimum = min(Integer.valueOf(data[i]), Integer.valueOf(data[j]));
+							int maximum = max(Integer.valueOf(data[i]), Integer.valueOf(data[j]));
+							Pair pair = new Pair(minimum, maximum);
+							document.add(pair);
+							if(documentB.containsKey(pair) == false){
+								documentB.put(pair, 1);
+								
+							}else{
+								int fre = documentB.get(pair);
+								fre ++;
+								documentB.put(pair, fre);
+								
+							}
+								
+//							documentB.add(new Pair(minimum, maximum));
+						}
+					}//for
+					
+					
+					double[] denominator = new double[Nd];
+					for(int i=0;i<Nd;i++){
+						for(int k=0;k<K;k++){
+							denominator[i] += theta[k] * phi[k][document.get(i).getWi()] * phi[k][document.get(i).getWj()];
+						}
+					}//for
+					
+					
+					double[] proba = new double[K];
+					int TOPIC = 0; //当前document 概率最大的topic
+					double maxproba = proba[0];
+					for(int k=0;k<K;k++){
+						
+						for(int i=0;i<Nd;i++){
+							proba[k] += theta[k] * phi[k][document.get(i).getWi()] * phi[k][document.get(i).getWj()] / denominator[i] * documentB.get(document.get(i))/Nd;
+						}
+						if(proba[k] > maxproba){
+							maxproba = proba[k];
+							TOPIC = k;
+						}
+					}
+					
+					TOPICS.add(TOPIC);
+
+					
+					
+					
+				}//fi
+				
+			}//while
+			
+			BufferedWriter bw = new BufferedWriter(new FileWriter(filename + "TOPIC_DISTRIBUTION")); //output each document's topic - distribution
+			for(Integer inte: TOPICS)
+				bw.write(inte + "\n");
+			bw.flush();
+			bw.close();
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+	}
 	public void saveModel(){
 		
 		String prefix = "BTM" + String.valueOf(iterations) + "iterations" + "_K" + K + "_alpha" + alpha+"_beta" + beta;
@@ -341,7 +429,7 @@ public class BTM {
 		
 		LDAarguments arg = new LDAarguments();
 		arg.Setalpha(0.1);arg.Setbeta(0.01);
-		arg.Setiterations(20);arg.SetK(50);
+		arg.Setiterations(20);arg.SetK(25);
 		arg.SetV(25943); //word is sparse
 		
 		
@@ -349,6 +437,7 @@ public class BTM {
 		lda.init(arg);
 		lda.readFile();
 		lda.estimation();
+		lda.inferenceNewDocument("experiments//test.txt");
 	
 		
 		
