@@ -8,12 +8,15 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.TreeMap;
 
 import org.apache.commons.math3.special.Beta;
+
+import com.data.preprocess.Preprocess;
 
 import ml.lda.LDAarguments;
 import ml.tm.tot.TOT;
@@ -266,6 +269,85 @@ public class BTM {
 
 	}
 	
+	public void getTopNWords(int N)  {
+		/**
+		 * 模型训练完，得到每个topic的前N个最大概率word, 将phi读入Map<Id,proba>,然后根据value排序,再从id2word 中得到前K个word
+		 */// phi = new double[K][V]   
+		
+		List<HashMap<Integer, Double>> topwords = new ArrayList<HashMap<Integer, Double>>();
+		for(int k=0;k<K;k++){
+			
+			HashMap<Integer, Double > currentTopicPhi = new HashMap<Integer, Double>();
+			for(int v=0;v<V;v++){
+				currentTopicPhi.put(v, phi[k][v]);
+			}
+			topwords.add(currentTopicPhi);
+			
+		}//for
+		
+		//对每一个topic下的proba 排序, 即对Map<Integer, Double> sort by value
+		List<LinkedHashMap<Integer, Double>> sortedTopWords = new ArrayList<LinkedHashMap<Integer, Double>>();
+		
+		for(int k=0;k<K;k++){
+			LinkedHashMap<Integer, Double> sortedmap = (LinkedHashMap<Integer, Double>) Preprocess.sortByValue(topwords.get(k));
+			sortedTopWords.add(sortedmap);
+		}
+		
+		
+		BufferedReader br;
+		Map<Integer, String> id2word = null;
+		try {
+			br = new BufferedReader(new FileReader("experiments//word2id.txt"));
+//			br = new BufferedReader(new FileReader("testdata//word2id.txt"));
+			String line = null;
+			 id2word = new HashMap<Integer, String>();
+			
+			try {
+				while(( line = br.readLine()) != null){
+					String[] data = line.split(" ");
+					id2word.put(Integer.valueOf(data[1]), data[0]);
+				}
+				br.close();
+			} catch (NumberFormatException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		//将每个topic 的前N个词汇output
+		try {
+			BufferedWriter bw = new BufferedWriter(new FileWriter("experiments//topNwords.txt"));
+//			BufferedWriter bw = new BufferedWriter(new FileWriter("testdata//200topNwords.txt"));
+			for(int k=0;k<K;k++){
+				int n = 0;
+				System.out.println("topic" + k +": ");
+				bw.write(k + "\n");
+				for(Map.Entry<Integer, Double> entry: sortedTopWords.get(k).entrySet()){
+					if(n < N){
+//						System.out.print();
+						bw.write(id2word.get(entry.getKey()) + ",");
+					}else
+						break;
+					n ++;
+				}//for
+//				System.out.println();
+				bw.write("\n");
+			}//for
+			bw.flush();bw.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
 	public void inferenceNewDocument(String filename){
 		/**
 		 * inference new documents's topid distribution
@@ -429,7 +511,7 @@ public class BTM {
 		
 		LDAarguments arg = new LDAarguments();
 		arg.Setalpha(0.1);arg.Setbeta(0.01);
-		arg.Setiterations(20);arg.SetK(25);
+		arg.Setiterations(10);arg.SetK(25);
 		arg.SetV(25943); //word is sparse
 		
 		
@@ -438,6 +520,7 @@ public class BTM {
 		lda.readFile();
 		lda.estimation();
 		lda.inferenceNewDocument("experiments//test.txt");
+		lda.getTopNWords(20);
 	
 		
 		
