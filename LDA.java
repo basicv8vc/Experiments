@@ -308,19 +308,98 @@ public class LDA {
 		/**
 		 *有的时候迭代了500次，可是不得不停止，这时候保存变量，下一次肯定想接着500次再迭代, readModel 
 		 */
-//		String prefix = iterations + "iterations" + "_K" + K + "_alpha" + alpha + "_beta" + beta;
-//		try {
-//			BufferedReader br = new BufferedReader(new FileReader(prefix + "Nmk.txt"));
-//			for(int m=0;m<M;m++){
-//				for(int k=0;k<K;k++){
-//					
-//				}
-//			}
-//		} catch (FileNotFoundException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-//		
+		String prefix = iterations + "iterations" + "_K" + K + "_alpha" + alpha + "_beta" + beta;
+		try {
+			BufferedReader br = new BufferedReader(new FileReader(prefix + "Nmk.txt"));
+			String line = null;
+			int m = 0;
+			try {
+				while((line = br.readLine()) != null){
+					String[] data = line.split(" ");
+					for(int k=0;k<Integer.valueOf(K);k++){
+						Nmk[m][k] = Integer.valueOf(data[k]);
+					}
+					m ++;
+				}
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			br = new BufferedReader(new FileReader(prefix + "Nkt.txt"));
+			int v = 0;
+			try {
+				while(( line = br.readLine()) != null){
+					String[] data = line.split(" ");
+					for(int k=0;k<Integer.valueOf(K);k++)
+						Nkt[v][k] = Integer.valueOf(data[k]);
+					v ++;
+				}
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			br = new BufferedReader(new FileReader(prefix + "Nm.txt"));
+			m = 0;
+			try {
+				while((line = br.readLine()) != null){
+					Nm[m] = Integer.valueOf(line);
+					m ++;
+				}
+			} catch (NumberFormatException | IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			br = new BufferedReader(new FileReader(prefix + "Nk.txt"));
+			int k = 0;
+			try {
+				while((line = br.readLine()) != null){
+					Nk[k] = Integer.valueOf(line);
+					k ++;
+				}
+			} catch (NumberFormatException | IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			
+			br = new BufferedReader(new FileReader(prefix + "z.txt"));
+			m = 0;
+			while((line = br.readLine()) != null){
+				String[] data = line.split(" ");
+				for(int i=0;i<data.length;i++)
+					z[m][i] = Integer.valueOf(data[i]); 
+				m ++;
+			}
+			
+			br = new BufferedReader(new FileReader(prefix + "phi.txt"));
+			k = 0;
+			while(( line = br.readLine()) != null){
+				String[] data = line.split(" ");
+				for(int v1=0;v1<data.length;v1++)
+					phi[k][v1] = Integer.valueOf(data[v1]);
+				k ++;
+			}
+			
+			br = new BufferedReader(new FileReader(prefix + "theta.txt"));
+			m = 0;
+			while((line = br.readLine()) != null){
+				String[] data = line.split(" ");
+				for(int i=0;i<data.length;i++)
+					theta[m][i] = Integer.valueOf(data[i]);
+				m ++;
+			}
+			
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 		
 		
 		
@@ -371,15 +450,17 @@ public class LDA {
 						proba[k] += proba[k-1];
 
 					double u = Math.random() * proba[newModel.K-1]; //random u
+					if(u < 0)
+						System.out.println(u);
 					for(tmpz=0;tmpz<newModel.K;tmpz++){
 						if(u <= proba[tmpz])
 							break;
 					}
 
-					newModel.Nmk[m][tmpz] --; // Nmk --
-					newModel.Nkt[currentword][tmpz] --; // Nkt --
-					newModel.Nm[m]--;
-					newModel.Nk[tmpz] --;
+					newModel.Nmk[m][tmpz] ++; // Nmk --
+					newModel.Nkt[currentword][tmpz] ++; // Nkt --
+					newModel.Nm[m] ++;
+					newModel.Nk[tmpz] ++;
 					
 					newModel.z[m][i] = tmpz;
 					
@@ -391,7 +472,7 @@ public class LDA {
 		}//samping
 		
 		
-		//计算测试集每篇文档的theta
+		//计算测试集每篇文档的theta, 将概率最大的topic输出
 		
 		for(int m = 0; m < newModel.M; m ++){
 			for(int k = 0; k < newModel.K; k ++)
@@ -400,11 +481,21 @@ public class LDA {
 		
 		try {
 			BufferedWriter bw = new BufferedWriter(new FileWriter("experiments//inferenceTestTheta.txt"));
+			
 			for(int m = 0; m < newModel.M; m ++){
-				for(int k=0;k<newModel.K-1;k++){
-					bw.write(newModel.theta[m][k] + " ");
+//				for(int k=0;k<newModel.K-1;k++){
+//					bw.write(newModel.theta[m][k] + " ");
+//				}
+//				bw.write(newModel.theta[m][newModel.K-1] + "\n");bw.flush();
+				double maxproba = newModel.theta[m][0];
+				int TOPIC = 0;
+				for(int k=1;k<newModel.K;k++){
+					if(newModel.theta[m][k] > maxproba){
+						maxproba = newModel.theta[m][k];
+						TOPIC = k;
+					}
 				}
-				bw.write(newModel.theta[m][newModel.K-1] + "\n");bw.flush();
+				bw.write(TOPIC + "\n");
 			}
 			bw.close();
 		} catch (IOException e) {
@@ -501,7 +592,7 @@ public class LDA {
 		
 		LDAarguments arg = new LDAarguments();
 		arg.Setalpha(0.1);arg.Setbeta(0.01);
-		arg.Setiterations(400);arg.SetK(30);
+		arg.Setiterations(20);arg.SetK(30);
 //		arg.SetM(2727204);arg.SetV(113438);
 		arg.SetM(260000);arg.SetV(25943);
 //		arg.SetM(17087);arg.SetV(20974);
